@@ -6,3 +6,9 @@ assets/temp
 
 # Ignore .backup files
 *.backup
+
+# Ignore output gcode files
+wip/cura/GCODE_Output
+
+# Ignore input gcode files
+wip/cura/test
