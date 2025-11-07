@@ -1,44 +1,70 @@
-const dataTableBody = document.querySelector("#dataTable tbody");
-const searchInput = document.getElementById("searchInput");
+// app.js
 
-let filas = [];
+// Base URL para los archivos STL
+const BASE_URL = "https://github.com/Biblioteca-Anatomica-3D/BodyParts3D/blob/main/assets/BodyParts3D_data/stl/";
 
-async function cargarArchivo() {
-  try {
-    const respuesta = await fetch("https://raw.githubusercontent.com/Biblioteca-Anatomica-3D/BodyParts3D/refs/heads/main/docs/parts_list_e.txt"); // archivo fijo
-    if (!respuesta.ok) {
-      throw new Error("No se pudo cargar el archivo parts_list_e.txt");
-    }
+// Carga los archivos de texto y genera la tabla
+async function loadData() {
+  const partsResponse = await fetch("parts_list_e.txt");
+  const partsText = await partsResponse.text();
 
-    const texto = await respuesta.text();
-    procesarTexto(texto);
-  } catch (error) {
-    console.error(error);
-  }
-}
+  const filesResponse = await fetch("file_list.txt");
+  const filesText = await filesResponse.text();
+  const availableFiles = new Set(filesText.split("\n").map(line => line.trim()).filter(line => line));
 
-function procesarTexto(text) {
-  const lineas = text.split(/\r?\n/).filter(l => l.trim() !== "");
-  const datos = lineas.slice(1); // ignoramos encabezado
+  // Parsear parts_list_e.txt
+  const rows = partsText.split("\n").slice(1).filter(line => line.trim());
+  const parts = rows.map(line => {
+    const [id, term] = line.split(/\t/);
+    const fileName = `${id}.stl`;
+    const hasFile = availableFiles.has(fileName);
+    const url = hasFile ? `${BASE_URL}${fileName}` : "";
+    return { id, term, url };
+  });
 
-  datos.forEach(linea => {
-    const [id, termino] = linea.split(/\t/);
-    if (id && termino) {
-      const fila = document.createElement("tr");
-      fila.innerHTML = `<td>${id}</td><td>${termino}</td>`;
-      dataTableBody.appendChild(fila);
-      filas.push(fila);
-    }
+  renderTable(parts);
+
+  // Buscar por ID o término
+  const searchInput = document.getElementById("searchInput");
+  searchInput.addEventListener("input", () => {
+    const query = searchInput.value.toLowerCase();
+    const filtered = parts.filter(p =>
+      p.id.toLowerCase().includes(query) || p.term.toLowerCase().includes(query)
+    );
+    renderTable(filtered);
   });
 }
 
-// Filtrado en vivo
-searchInput.addEventListener("input", () => {
-  const filtro = searchInput.value.toLowerCase();
-  filas.forEach(fila => {
-    const textoFila = fila.innerText.toLowerCase();
-    fila.style.display = textoFila.includes(filtro) ? "" : "none";
-  });
-});
+// Función para renderizar la tabla
+function renderTable(data) {
+  const tbody = document.querySelector("#dataTable tbody");
+  tbody.innerHTML = "";
 
-cargarArchivo();
+  data.forEach(part => {
+    const tr = document.createElement("tr");
+
+    const idCell = document.createElement("td");
+    idCell.textContent = part.id;
+    tr.appendChild(idCell);
+
+    const termCell = document.createElement("td");
+    termCell.textContent = part.term;
+    tr.appendChild(termCell);
+
+    const linkCell = document.createElement("td");
+    if (part.url) {
+      const a = document.createElement("a");
+      a.href = part.url;
+      a.textContent = "View STL";
+      a.target = "_blank";
+      linkCell.appendChild(a);
+    } else {
+      linkCell.textContent = "";
+    }
+    tr.appendChild(linkCell);
+
+    tbody.appendChild(tr);
+  });
+}
+
+loadData();
